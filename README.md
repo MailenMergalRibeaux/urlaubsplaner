@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Urlaubsplaner (Spring Boot, Java 21)
 
 [![CI](https://github.com/YOUR_ORG/urlaubsplaner/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_ORG/urlaubsplaner/actions/workflows/ci.yml)
