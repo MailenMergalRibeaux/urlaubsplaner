@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM gradle:8.7-jdk21 AS build
+FROM gradle:9.5.1-jdk21 AS build
 WORKDIR /app
 
 # Copy Gradle wrapper and metadata first to keep layer caching effective.
