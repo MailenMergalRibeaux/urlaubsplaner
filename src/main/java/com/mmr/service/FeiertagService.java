@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,8 +33,17 @@ public class FeiertagService {
 
     @Transactional(readOnly = true)
     public List<FeiertagResponse> findByZeitraumUndBundesland(LocalDate von, LocalDate bis, Bundesland bundesland) {
-        return repository.findByZeitraumUndBundesland(von, bis, bundesland)
-                .stream().map(FeiertagResponse::from).toList();
+        return findByZeitraum(von, bis).stream()
+                .filter(Objects::nonNull)
+                .filter(f -> f.bundesland().equals(bundesland))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeiertagResponse> findByZeitraum(LocalDate von, LocalDate bis) {
+        return repository.findByDatumBetweenAndBundeslandIsNull(von, bis)
+                .stream()
+                .filter(Objects::nonNull).map(FeiertagResponse::from).toList();
     }
 
     @Transactional(readOnly = true)

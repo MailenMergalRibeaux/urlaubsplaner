@@ -9,7 +9,6 @@ import com.mmr.exception.UngueltigerZeitraumException;
 import com.mmr.exception.UrlaubsAntragNotFoundException;
 import com.mmr.repository.UrlaubsAntragRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,22 +20,12 @@ import java.util.List;
 public class UrlaubsAntragService {
 
     private final UrlaubsAntragRepository repository;
-    @Lazy
     private final UrlaubskontoService urlaubskontoService;
-
 
     public UrlaubsAntragResponse erstellen(UrlaubsAntragRequest request) {
         validiereZeitraum(request);
-
         UrlaubsAntrag antrag = new UrlaubsAntrag();
-        antrag.setMitarbeiterId(request.mitarbeiterId());
-        antrag.setStartdatum(request.startdatum());
-        antrag.setEnddatum(request.enddatum());
-        if (request.urlaubsart() != null) {
-            antrag.setUrlaubsart(request.urlaubsart());
-        }
-        antrag.setKommentar(request.kommentar());
-
+        mapRequestToAntrag(antrag, request);
         return UrlaubsAntragResponse.from(repository.save(antrag));
     }
 
@@ -68,7 +57,6 @@ public class UrlaubsAntragService {
 
     public UrlaubsAntragResponse aktualisieren(Long id, UrlaubsAntragRequest request) {
         validiereZeitraum(request);
-
         UrlaubsAntrag antrag = getOrThrow(id);
 
         if (antrag.getStatus() != AntragStatus.BEANTRAGT) {
@@ -77,14 +65,7 @@ public class UrlaubsAntragService {
             );
         }
 
-        antrag.setMitarbeiterId(request.mitarbeiterId());
-        antrag.setStartdatum(request.startdatum());
-        antrag.setEnddatum(request.enddatum());
-        if (request.urlaubsart() != null) {
-            antrag.setUrlaubsart(request.urlaubsart());
-        }
-        antrag.setKommentar(request.kommentar());
-
+        mapRequestToAntrag(antrag, request);
         return UrlaubsAntragResponse.from(repository.save(antrag));
     }
 
@@ -97,16 +78,9 @@ public class UrlaubsAntragService {
         if (request.kommentar() != null) {
             antrag.setKommentar(request.kommentar());
         }
+
         UrlaubsAntrag gespeichert = repository.save(antrag);
-
-        // Urlaubskonto-Buchung: nur wenn Konto vorhanden (optional), keine Exception wenn nicht
-        if (neuerStatus == AntragStatus.GENEHMIGT && alterStatus != AntragStatus.GENEHMIGT) {
-            urlaubskontoService.tagebuchen(gespeichert);
-        } else if ((neuerStatus == AntragStatus.ABGELEHNT || neuerStatus == AntragStatus.STORNIERT)
-                && alterStatus == AntragStatus.GENEHMIGT) {
-            urlaubskontoService.tageFreigeben(gespeichert);
-        }
-
+        verarbeiteKontoBuchung(alterStatus, neuerStatus, gespeichert);
         return UrlaubsAntragResponse.from(gespeichert);
     }
 
@@ -116,6 +90,26 @@ public class UrlaubsAntragService {
             throw new IllegalStateException("Ein genehmigter Antrag kann nicht gelöscht werden.");
         }
         repository.delete(antrag);
+    }
+
+    // --- private Hilfsmethoden ---
+    private void mapRequestToAntrag(UrlaubsAntrag antrag, UrlaubsAntragRequest request) {
+        antrag.setMitarbeiterId(request.mitarbeiterId());
+        antrag.setStartdatum(request.startdatum());
+        antrag.setEnddatum(request.enddatum());
+        if (request.urlaubsart() != null) {
+            antrag.setUrlaubsart(request.urlaubsart());
+        }
+        antrag.setKommentar(request.kommentar());
+    }
+
+    private void verarbeiteKontoBuchung(AntragStatus alter, AntragStatus neu, UrlaubsAntrag antrag) {
+        if (neu == AntragStatus.GENEHMIGT && alter != AntragStatus.GENEHMIGT) {
+            urlaubskontoService.tagebuchen(antrag);
+        } else if ((neu == AntragStatus.ABGELEHNT || neu == AntragStatus.STORNIERT)
+                && alter == AntragStatus.GENEHMIGT) {
+            urlaubskontoService.tageFreigeben(antrag);
+        }
     }
 
     private UrlaubsAntrag getOrThrow(Long id) {
@@ -132,4 +126,3 @@ public class UrlaubsAntragService {
         }
     }
 }
-
