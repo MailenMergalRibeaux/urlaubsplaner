@@ -1,7 +1,5 @@
 package com.mmr.service;
 
-import com.mmr.domain.Bundesland;
-import com.mmr.domain.Mitarbeiter;
 import com.mmr.domain.Urlaubskonto;
 import com.mmr.domain.UrlaubsAntrag;
 import com.mmr.dto.UrlaubskontoRequest;
@@ -9,10 +7,8 @@ import com.mmr.dto.UrlaubskontoResponse;
 import com.mmr.exception.NichtGenugUrlaubstageException;
 import com.mmr.exception.UrlaubskontoNotFoundException;
 import com.mmr.repository.MitarbeiterRepository;
-import com.mmr.repository.UrlaubsAntragRepository;
 import com.mmr.repository.UrlaubskontoRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,9 +23,7 @@ import java.util.Set;
 public class UrlaubskontoService {
 
     private final UrlaubskontoRepository kontoRepository;
-    private final UrlaubsAntragRepository antragRepository;
     private final MitarbeiterRepository mitarbeiterRepository;
-    @Lazy
     private final FeiertagService feiertagService;
 
 
@@ -73,33 +67,22 @@ public class UrlaubskontoService {
      * Wirft NichtGenugUrlaubstageException wenn das Konto nicht ausreicht.
      */
     public void tagebuchen(UrlaubsAntrag antrag) {
-        int jahr = antrag.getStartdatum().getYear();
-        Urlaubskonto konto = getOrThrow(antrag.getMitarbeiterId(), jahr);
-
-        int arbeitstage = berechneArbeitstage(antrag.getMitarbeiterId(),
-                antrag.getStartdatum(), antrag.getEnddatum());
+        Urlaubskonto konto = getOrThrow(antrag.getMitarbeiterId(), antrag.getStartdatum().getYear());
+        int arbeitstage = berechneArbeitstageFuerAntrag(antrag);
 
         if (konto.getVerbleibendeTage() < arbeitstage) {
             throw new NichtGenugUrlaubstageException(arbeitstage, konto.getVerbleibendeTage());
         }
 
-        konto.setGebuchteTage(konto.getGebuchteTage() + arbeitstage);
-        kontoRepository.save(konto);
+        aktualisiereGebuchteTage(konto, arbeitstage);
     }
 
     /**
      * Gibt gebuchte Tage zurück (beim Ablehnen oder Stornieren eines Antrags).
      */
     public void tageFreigeben(UrlaubsAntrag antrag) {
-        int jahr = antrag.getStartdatum().getYear();
-        kontoRepository.findByMitarbeiterIdAndJahr(antrag.getMitarbeiterId(), jahr)
-                .ifPresent(konto -> {
-                    int arbeitstage = berechneArbeitstage(antrag.getMitarbeiterId(),
-                            antrag.getStartdatum(), antrag.getEnddatum());
-                    int neu = Math.max(0, konto.getGebuchteTage() - arbeitstage);
-                    konto.setGebuchteTage(neu);
-                    kontoRepository.save(konto);
-                });
+        kontoRepository.findByMitarbeiterIdAndJahr(antrag.getMitarbeiterId(), antrag.getStartdatum().getYear())
+                .ifPresent(konto -> aktualisiereGebuchteTage(konto, -berechneArbeitstageFuerAntrag(antrag)));
     }
 
     /**
@@ -107,20 +90,35 @@ public class UrlaubskontoService {
      * Falls Mitarbeiter nicht gefunden, werden nur Wochenenden abgezogen.
      */
     public int berechneArbeitstage(String mitarbeiterId, LocalDate start, LocalDate ende) {
-        Bundesland bundesland = mitarbeiterRepository.findById(mitarbeiterId)
-                .map(Mitarbeiter::getBundesland)
-                .orElse(null);
+        return zaehleArbeitstage(start, ende, ladeFeiertage(mitarbeiterId, start, ende));
+    }
 
-        Set<LocalDate> feiertage = bundesland != null
-                ? feiertagService.getFeiertagsDaten(start, ende, bundesland)
-                : Set.of();
+    /**
+     * Überladung ohne Mitarbeiter-Kontext (rückwärtskompatibel, kein Feiertagsabzug).
+     */
+    public int berechneArbeitstage(LocalDate start, LocalDate ende) {
+        return zaehleArbeitstage(start, ende, Set.of());
+    }
 
+    private int berechneArbeitstageFuerAntrag(UrlaubsAntrag antrag) {
+        return berechneArbeitstage(antrag.getMitarbeiterId(), antrag.getStartdatum(), antrag.getEnddatum());
+    }
+
+    private Set<LocalDate> ladeFeiertage(String mitarbeiterId, LocalDate start, LocalDate ende) {
+        if (mitarbeiterId == null) {
+            return Set.of();
+        }
+
+        return mitarbeiterRepository.findById(mitarbeiterId)
+                .map(mitarbeiter -> feiertagService.getFeiertagsDaten(start, ende, mitarbeiter.getBundesland()))
+                .orElse(Set.of());
+    }
+
+    private int zaehleArbeitstage(LocalDate start, LocalDate ende, Set<LocalDate> feiertage) {
         int tage = 0;
         LocalDate aktuell = start;
         while (!aktuell.isAfter(ende)) {
-            DayOfWeek tag = aktuell.getDayOfWeek();
-            if (tag != DayOfWeek.SATURDAY && tag != DayOfWeek.SUNDAY
-                    && !feiertage.contains(aktuell)) {
+            if (istArbeitstag(aktuell, feiertage)) {
                 tage++;
             }
             aktuell = aktuell.plusDays(1);
@@ -128,11 +126,16 @@ public class UrlaubskontoService {
         return tage;
     }
 
-    /**
-     * Überladung ohne Mitarbeiter-Kontext (rückwärtskompatibel, kein Feiertagsabzug).
-     */
-    public int berechneArbeitstage(LocalDate start, LocalDate ende) {
-        return berechneArbeitstage(null, start, ende);
+    private boolean istArbeitstag(LocalDate datum, Set<LocalDate> feiertage) {
+        DayOfWeek tag = datum.getDayOfWeek();
+        return tag != DayOfWeek.SATURDAY
+                && tag != DayOfWeek.SUNDAY
+                && !feiertage.contains(datum);
+    }
+
+    private void aktualisiereGebuchteTage(Urlaubskonto konto, int delta) {
+        konto.setGebuchteTage(Math.max(0, konto.getGebuchteTage() + delta));
+        kontoRepository.save(konto);
     }
 
     private Urlaubskonto getOrThrow(String mitarbeiterId, int jahr) {

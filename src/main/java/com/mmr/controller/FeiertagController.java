@@ -28,18 +28,19 @@ public class FeiertagController {
     }
 
     @GetMapping
-    public List<FeiertagResponse> find(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate von,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bis,
-            @RequestParam(required = false) Bundesland bundesland) {
-
-        if (von != null && bis != null && bundesland != null) {
-            return service.findByZeitraumUndBundesland(von, bis, bundesland);
-        }
+    public List<FeiertagResponse> findAll() {
         return service.findAll();
     }
 
-    @GetMapping("/by-zeitraum")
+    @GetMapping("/zeitraum-bundesland")
+    public List<FeiertagResponse> findByZeitraumUndBundesland(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate von,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bis,
+            @RequestParam Bundesland bundesland) {
+        return service.findByZeitraumUndBundesland(von, bis, bundesland);
+    }
+
+    @GetMapping("/zeitraum")
     public List<FeiertagResponse> findByZeitraum(
             @RequestParam() @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate von,
             @RequestParam() @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bis) {

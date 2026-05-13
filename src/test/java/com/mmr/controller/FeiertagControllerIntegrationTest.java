@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -93,7 +94,7 @@ class FeiertagControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long antragId = objectMapper.readTree(antragJson).get("id").asLong();
+        long antragId = objectMapper.readTree(antragJson).get("id").asLong();
 
         // Genehmigen
         StatusUpdateRequest statusRequest = new StatusUpdateRequest(AntragStatus.GENEHMIGT, null);
@@ -107,6 +108,35 @@ class FeiertagControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gebuchteTage").value(4))
                 .andExpect(jsonPath("$.verbleibendeTage").value(6));
+    }
+
+    @Test
+    void zeitraumUndBundeslandLiefertBundesweiteUndRegionaleFeiertage() throws Exception {
+        FeiertagRequest bundesweit = new FeiertagRequest("Bundesweit", LocalDate.of(2026, 5, 1), null);
+        FeiertagRequest nordrheinWestfalen = new FeiertagRequest("Regional NW", LocalDate.of(2026, 5, 2), Bundesland.NW);
+        FeiertagRequest bayern = new FeiertagRequest("Regional BY", LocalDate.of(2026, 5, 3), Bundesland.BY);
+
+        mockMvc.perform(post("/api/feiertage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bundesweit)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/feiertage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(nordrheinWestfalen)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/feiertage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bayern)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/feiertage/zeitraum-bundesland")
+                        .param("von", "2026-05-01")
+                        .param("bis", "2026-05-31")
+                        .param("bundesland", "NW"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
     }
 }
 

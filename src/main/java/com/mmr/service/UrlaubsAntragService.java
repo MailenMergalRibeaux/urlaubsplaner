@@ -12,21 +12,25 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class UrlaubsAntragService {
 
+    private static final Set<AntragStatus> STATUS_MIT_TAGE_FREIGABE =
+            EnumSet.of(AntragStatus.ABGELEHNT, AntragStatus.STORNIERT);
+
     private final UrlaubsAntragRepository repository;
     private final UrlaubskontoService urlaubskontoService;
 
     public UrlaubsAntragResponse erstellen(UrlaubsAntragRequest request) {
         validiereZeitraum(request);
-        UrlaubsAntrag antrag = new UrlaubsAntrag();
-        mapRequestToAntrag(antrag, request);
-        return UrlaubsAntragResponse.from(repository.save(antrag));
+        UrlaubsAntrag antrag = mapRequestToAntrag(new UrlaubsAntrag(), request);
+        return speichernUndMappen(antrag);
     }
 
     @Transactional(readOnly = true)
@@ -36,51 +40,33 @@ public class UrlaubsAntragService {
 
     @Transactional(readOnly = true)
     public List<UrlaubsAntragResponse> findAll() {
-        return repository.findAll().stream()
-                .map(UrlaubsAntragResponse::from)
-                .toList();
+        return toResponses(repository.findAll());
     }
 
     @Transactional(readOnly = true)
     public List<UrlaubsAntragResponse> findByMitarbeiter(String mitarbeiterId) {
-        return repository.findByMitarbeiterId(mitarbeiterId).stream()
-                .map(UrlaubsAntragResponse::from)
-                .toList();
+        return toResponses(repository.findByMitarbeiterId(mitarbeiterId));
     }
 
     @Transactional(readOnly = true)
     public List<UrlaubsAntragResponse> findByStatus(AntragStatus status) {
-        return repository.findByStatus(status).stream()
-                .map(UrlaubsAntragResponse::from)
-                .toList();
+        return toResponses(repository.findByStatus(status));
     }
 
     public UrlaubsAntragResponse aktualisieren(Long id, UrlaubsAntragRequest request) {
         validiereZeitraum(request);
         UrlaubsAntrag antrag = getOrThrow(id);
-
-        if (antrag.getStatus() != AntragStatus.BEANTRAGT) {
-            throw new IllegalStateException(
-                    "Antrag kann nur im Status BEANTRAGT bearbeitet werden, aktueller Status: " + antrag.getStatus()
-            );
-        }
-
-        mapRequestToAntrag(antrag, request);
-        return UrlaubsAntragResponse.from(repository.save(antrag));
+        assertIstBearbeitbar(antrag);
+        return speichernUndMappen(mapRequestToAntrag(antrag, request));
     }
 
     public UrlaubsAntragResponse statusAktualisieren(Long id, StatusUpdateRequest request) {
         UrlaubsAntrag antrag = getOrThrow(id);
         AntragStatus alterStatus = antrag.getStatus();
-        AntragStatus neuerStatus = request.status();
-
-        antrag.setStatus(neuerStatus);
-        if (request.kommentar() != null) {
-            antrag.setKommentar(request.kommentar());
-        }
+        aktualisiereStatusUndKommentar(antrag, request);
 
         UrlaubsAntrag gespeichert = repository.save(antrag);
-        verarbeiteKontoBuchung(alterStatus, neuerStatus, gespeichert);
+        triggerKontoBuchung(alterStatus, gespeichert);
         return UrlaubsAntragResponse.from(gespeichert);
     }
 
@@ -93,7 +79,7 @@ public class UrlaubsAntragService {
     }
 
     // --- private Hilfsmethoden ---
-    private void mapRequestToAntrag(UrlaubsAntrag antrag, UrlaubsAntragRequest request) {
+    private UrlaubsAntrag mapRequestToAntrag(UrlaubsAntrag antrag, UrlaubsAntragRequest request) {
         antrag.setMitarbeiterId(request.mitarbeiterId());
         antrag.setStartdatum(request.startdatum());
         antrag.setEnddatum(request.enddatum());
@@ -101,15 +87,39 @@ public class UrlaubsAntragService {
             antrag.setUrlaubsart(request.urlaubsart());
         }
         antrag.setKommentar(request.kommentar());
+        return antrag;
     }
 
-    private void verarbeiteKontoBuchung(AntragStatus alter, AntragStatus neu, UrlaubsAntrag antrag) {
-        if (neu == AntragStatus.GENEHMIGT && alter != AntragStatus.GENEHMIGT) {
+    private void triggerKontoBuchung(AntragStatus alterStatus, UrlaubsAntrag antrag) {
+        AntragStatus neuerStatus = antrag.getStatus();
+        if (neuerStatus == AntragStatus.GENEHMIGT && alterStatus != AntragStatus.GENEHMIGT) {
             urlaubskontoService.tagebuchen(antrag);
-        } else if ((neu == AntragStatus.ABGELEHNT || neu == AntragStatus.STORNIERT)
-                && alter == AntragStatus.GENEHMIGT) {
+        } else if (STATUS_MIT_TAGE_FREIGABE.contains(neuerStatus) && alterStatus == AntragStatus.GENEHMIGT) {
             urlaubskontoService.tageFreigeben(antrag);
         }
+    }
+
+    private void aktualisiereStatusUndKommentar(UrlaubsAntrag antrag, StatusUpdateRequest request) {
+        antrag.setStatus(request.status());
+        if (request.kommentar() != null) {
+            antrag.setKommentar(request.kommentar());
+        }
+    }
+
+    private void assertIstBearbeitbar(UrlaubsAntrag antrag) {
+        if (antrag.getStatus() != AntragStatus.BEANTRAGT) {
+            throw new IllegalStateException(
+                    "Antrag kann nur im Status BEANTRAGT bearbeitet werden, aktueller Status: " + antrag.getStatus()
+            );
+        }
+    }
+
+    private List<UrlaubsAntragResponse> toResponses(List<UrlaubsAntrag> antraege) {
+        return antraege.stream().map(UrlaubsAntragResponse::from).toList();
+    }
+
+    private UrlaubsAntragResponse speichernUndMappen(UrlaubsAntrag antrag) {
+        return UrlaubsAntragResponse.from(repository.save(antrag));
     }
 
     private UrlaubsAntrag getOrThrow(Long id) {

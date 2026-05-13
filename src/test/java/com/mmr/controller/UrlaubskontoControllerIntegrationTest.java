@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mmr.domain.AntragStatus;
+import com.mmr.domain.Bundesland;
 import com.mmr.domain.Urlaubsart;
+import com.mmr.dto.FeiertagRequest;
+import com.mmr.dto.MitarbeiterRequest;
 import com.mmr.dto.StatusUpdateRequest;
 import com.mmr.dto.UrlaubsAntragRequest;
 import com.mmr.dto.UrlaubskontoRequest;
@@ -98,7 +101,7 @@ class UrlaubskontoControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long antragId = objectMapper.readTree(antragJson).get("id").asLong();
+        long antragId = objectMapper.readTree(antragJson).get("id").asLong();
 
         // Genehmigen
         StatusUpdateRequest statusRequest = new StatusUpdateRequest(AntragStatus.GENEHMIGT, null);
@@ -139,7 +142,7 @@ class UrlaubskontoControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long antragId = objectMapper.readTree(antragJson).get("id").asLong();
+        long antragId = objectMapper.readTree(antragJson).get("id").asLong();
 
         // Genehmigen muss fehlschlagen
         StatusUpdateRequest statusRequest = new StatusUpdateRequest(AntragStatus.GENEHMIGT, null);
@@ -147,6 +150,109 @@ class UrlaubskontoControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void stornierungGibtGebuchteTageWiederFrei() throws Exception {
+        UrlaubskontoRequest kontoRequest = new UrlaubskontoRequest("MA-021", 2026, 30);
+        mockMvc.perform(post("/api/urlaubskonten")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(kontoRequest)))
+                .andExpect(status().isCreated());
+
+        UrlaubsAntragRequest antragRequest = new UrlaubsAntragRequest(
+                "MA-021",
+                LocalDate.of(2026, 7, 6),
+                LocalDate.of(2026, 7, 10),
+                Urlaubsart.ERHOLUNGSURLAUB,
+                null
+        );
+
+        String antragJson = mockMvc.perform(post("/api/urlaubsantraege")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(antragRequest)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        long antragId = objectMapper.readTree(antragJson).get("id").asLong();
+
+        mockMvc.perform(patch("/api/urlaubsantraege/" + antragId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new StatusUpdateRequest(AntragStatus.GENEHMIGT, null))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("GENEHMIGT"));
+
+        mockMvc.perform(patch("/api/urlaubsantraege/" + antragId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new StatusUpdateRequest(AntragStatus.STORNIERT, "Urlaub entfällt"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("STORNIERT"));
+
+        mockMvc.perform(get("/api/urlaubskonten/MA-021/2026"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gebuchteTage").value(0))
+                .andExpect(jsonPath("$.verbleibendeTage").value(30));
+    }
+
+    @Test
+    void feiertagWirdVonArbeitstagenAbgezogen() throws Exception {
+        MitarbeiterRequest mitarbeiterRequest = new MitarbeiterRequest(
+                "MA-040",
+                "Mia",
+                "Muster",
+                "mia.muster@example.org",
+                Bundesland.NW,
+                null
+        );
+        mockMvc.perform(post("/api/mitarbeiter")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(mitarbeiterRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("MA-040"));
+
+        FeiertagRequest feiertagRequest = new FeiertagRequest(
+                "Regionalfeiertag",
+                LocalDate.of(2026, 7, 8),
+                Bundesland.NW
+        );
+        mockMvc.perform(post("/api/feiertage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(feiertagRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.datum").value("2026-07-08"));
+
+        UrlaubskontoRequest kontoRequest = new UrlaubskontoRequest("MA-040", 2026, 30);
+        mockMvc.perform(post("/api/urlaubskonten")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(kontoRequest)))
+                .andExpect(status().isCreated());
+
+        UrlaubsAntragRequest antragRequest = new UrlaubsAntragRequest(
+                "MA-040",
+                LocalDate.of(2026, 7, 6),
+                LocalDate.of(2026, 7, 10),
+                Urlaubsart.ERHOLUNGSURLAUB,
+                null
+        );
+
+        String antragJson = mockMvc.perform(post("/api/urlaubsantraege")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(antragRequest)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        long antragId = objectMapper.readTree(antragJson).get("id").asLong();
+
+        mockMvc.perform(patch("/api/urlaubsantraege/" + antragId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new StatusUpdateRequest(AntragStatus.GENEHMIGT, null))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("GENEHMIGT"));
+
+        mockMvc.perform(get("/api/urlaubskonten/MA-040/2026"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gebuchteTage").value(4))
+                .andExpect(jsonPath("$.verbleibendeTage").value(26));
     }
 }
 
