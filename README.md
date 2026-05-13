@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Urlaubsplaner (Spring Boot, Java 21)
 
 [![CI](https://github.com/YOUR_ORG/urlaubsplaner/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_ORG/urlaubsplaner/actions/workflows/ci.yml)
@@ -199,3 +200,6 @@ Sichtbarkeit: **Settings → Packages → Change visibility → Public**.
 
 > Ersetze `YOUR_ORG` in `README.md` und den Badges durch deinen GitHub-Nutzernamen oder deine Organisation.
 
+=======
+# urlaubsplaner
+>>>>>>> 10d365d5e9d13716a35b405ffab5b877337236b8
