@@ -45,7 +45,7 @@ jobs:
         run: ./gradlew bootJar -x test --no-daemon
 
       - name: Run tests
-        run: ./gradlew test --no-daemon
+        run: ./gradlew clean test --no-daemon
 
       - name: Upload test reports
         if: always()
@@ -62,4 +62,3 @@ jobs:
           name: test-results
           path: build/test-results/test/
           retention-days: 14
-
