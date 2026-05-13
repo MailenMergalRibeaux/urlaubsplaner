@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: urlaubsplaner-db
+    environment:
+      POSTGRES_DB: urlaubsplaner
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d urlaubsplaner"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: urlaubsplaner-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://db:5432/urlaubsplaner
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      SERVER_PORT: 8080
+    ports:
+      - "58080:8080"
+    restart: unless-stopped
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:v5.17.14
+    container_name: urlaubsplaner-swagger-ui
+    depends_on:
+      - app
+    environment:
+      # Browser-seitiger Zugriff auf OpenAPI-JSON der lokal gemappten App.
+      URL: http://localhost:58080/v3/api-docs
+    ports:
+      - "58081:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+

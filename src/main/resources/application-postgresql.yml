@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/urlaubsplaner}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  sql:
+    init:
+      mode: always
+      # Nur PostgreSQL-spezifisches Seed laden (ON CONFLICT Upserts)
+      data-locations: classpath:data-postgresql.sql

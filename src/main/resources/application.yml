@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: urlaubsplaner
+  # Aktives Profil: per --spring.profiles.active=<profil> oder Env SPRING_PROFILES_ACTIVE.
+  # Verfuegbare Profile:
+  #   (kein)     - H2-In-Memory, Port 8081, kein SQL-Init  (lokale Entwicklung ohne DB)
+  #   postgresql - PostgreSQL via Env-Vars, SQL-Init        (lokal mit Postgres)
+  #   docker     - PostgreSQL via db-Host, Port 8080        (Container-Betrieb)
+
+  security:
+    user:
+      # Credentials for HTTP Basic authentication on protected endpoints.
+      # Override via environment variables in each runtime environment.
+      name: ${APP_SECURITY_USER:admin}
+      password: ${APP_SECURITY_PASSWORD:admin123}
+      roles: USER
+
+  datasource:
+    # Default auf H2, damit die App lokal ohne PostgreSQL-Zugangsdaten startet.
+    url: jdbc:h2:mem:urlaubsplaner;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    defer-datasource-initialization: true
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Europe/Berlin
+        default_schema: public
+
+  jackson:
+    time-zone: Europe/Berlin
+    locale: de_DE
+
+  sql:
+    init:
+      mode: never
+      continue-on-error: true
+
+server:
+  port: ${SERVER_PORT:8081}
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  error:
+    include-message: always
+    include-binding-errors: always
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    try-it-out-enabled: true
+    display-request-duration: true

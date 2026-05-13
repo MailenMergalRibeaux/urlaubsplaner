@@ -1,0 +1,10 @@
+services:
+  app:
+    # Lokale Dev-Overrides – automatisch gemergt bei 'docker compose up'.
+    # Profil bleibt 'docker'; hier werden nur Logging-Details fuer lokale Arbeit erhoben.
+    environment:
+      SPRING_JPA_SHOW_SQL: "true"
+      LOGGING_LEVEL_ORG_HIBERNATE_SQL: DEBUG
+      LOGGING_LEVEL_ORG_HIBERNATE_ORM_JDBC_BIND: TRACE
+      SPRINGDOC_SWAGGER_UI_ENABLED: "true"
+      SPRINGDOC_API_DOCS_ENABLED: "true"

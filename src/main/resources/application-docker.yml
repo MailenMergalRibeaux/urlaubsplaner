@@ -1,0 +1,35 @@
+# Profil "docker" – wird in docker-compose.yml per SPRING_PROFILES_ACTIVE=docker aktiviert.
+# Erbt alle Default-Einstellungen aus application.yml und optimiert fuer Containerbetrieb.
+
+spring:
+  datasource:
+    # Hostname "db" ist der Docker-Compose-Servicename.
+    url: ${DB_URL:jdbc:postgresql://db:5432/urlaubsplaner}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # Im Container Schema per ddl-auto anlegen, dann validate
+      ddl-auto: update
+
+  sql:
+    init:
+      mode: always
+      # Idempotentes PostgreSQL-Seed (ON CONFLICT Upserts)
+      data-locations: classpath:data-postgresql.sql
+
+server:
+  # Im Container immer Port 8080; gemappt via docker-compose ports.
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    # Kein SQL-Verbose-Logging im Container (Performance + Lesbarkeit)
+    org.hibernate.SQL: INFO
+    org.hibernate.orm.jdbc.bind: INFO
+    com.mmr: DEBUG
+
