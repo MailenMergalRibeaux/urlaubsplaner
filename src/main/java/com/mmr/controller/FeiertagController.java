@@ -39,7 +39,7 @@ public class FeiertagController {
         return service.findAll();
     }
 
-    @GetMapping
+    @GetMapping("/by-zeitraum")
     public List<FeiertagResponse> findByZeitraum(
             @RequestParam() @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate von,
             @RequestParam() @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bis) {
