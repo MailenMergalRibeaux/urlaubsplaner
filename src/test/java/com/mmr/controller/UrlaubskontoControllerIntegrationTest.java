@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mmr.domain.AntragStatus;
 import com.mmr.domain.Bundesland;
+import com.mmr.domain.Rolle;
 import com.mmr.domain.Urlaubsart;
 import com.mmr.dto.FeiertagRequest;
 import com.mmr.dto.MitarbeiterRequest;
@@ -28,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@WithMockUser(username = "testuser", roles = "USER")
+@WithMockUser(username = "fuehrungskraft@local", roles = "FUEHRUNGSKRAFT")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class UrlaubskontoControllerIntegrationTest {
 
@@ -201,6 +202,8 @@ class UrlaubskontoControllerIntegrationTest {
                 "Mia",
                 "Muster",
                 "mia.muster@example.org",
+                "geheim12",
+                Rolle.MITARBEITER,
                 Bundesland.NW,
                 null
         );

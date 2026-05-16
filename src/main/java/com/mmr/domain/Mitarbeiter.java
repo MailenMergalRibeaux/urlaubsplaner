@@ -30,6 +30,15 @@ public class Mitarbeiter {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @NotBlank
+    @Column(name = "passwort_hash", nullable = false)
+    private String passwortHash;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Rolle rolle;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -39,4 +48,3 @@ public class Mitarbeiter {
     private String vorgesetzterMitarbeiterId;
 
 }
-

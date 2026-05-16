@@ -1,13 +1,12 @@
 package com.mmr.dto;
 
+import com.mmr.domain.Bundesland;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import com.mmr.domain.Bundesland;
-import com.mmr.domain.Rolle;
 
-public record MitarbeiterRequest(
+public record RegisterFuehrungskraftRequest(
         @NotBlank(message = "ID darf nicht leer sein")
         String id,
 
@@ -20,15 +19,15 @@ public record MitarbeiterRequest(
         @NotBlank @Email(message = "Ungültige E-Mail-Adresse")
         String email,
 
-        @Size(min = 8, message = "Passwort muss mindestens 8 Zeichen lang sein")
+        @NotBlank @Size(min = 8, message = "Passwort muss mindestens 8 Zeichen lang sein")
         String passwort,
-
-        @NotNull(message = "Rolle ist erforderlich")
-        Rolle rolle,
 
         @NotNull(message = "Bundesland ist erforderlich")
         Bundesland bundesland,
 
-        String vorgesetzterMitarbeiterId
+        String vorgesetzterMitarbeiterId,
+
+        @NotBlank(message = "Invite-Code ist erforderlich")
+        String inviteCode
 ) {
 }

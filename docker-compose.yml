@@ -30,6 +30,9 @@ services:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       SERVER_PORT: 8080
+      # Initiale Fuehrungskraft + Self-Registration-Code; in Produktion ueber .env oder Secret setzen.
+      APP_FUEHRUNGSKRAFT_PASSWORD: ${APP_FUEHRUNGSKRAFT_PASSWORD:-Initial1234}
+      APP_FUEHRUNGSKRAFT_INVITE_CODE: ${APP_FUEHRUNGSKRAFT_INVITE_CODE:-CHANGE-ME-INVITE-2026}
     ports:
       - "58080:8080"
     restart: unless-stopped

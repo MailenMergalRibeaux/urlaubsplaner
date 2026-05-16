@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mmr.domain.AntragStatus;
 import com.mmr.domain.Bundesland;
+import com.mmr.domain.Rolle;
 import com.mmr.domain.Urlaubsart;
 import com.mmr.dto.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@WithMockUser(username = "testuser", roles = "USER")
+@WithMockUser(username = "fuehrungskraft@local", roles = "FUEHRUNGSKRAFT")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class FeiertagControllerIntegrationTest {
 
@@ -61,7 +62,8 @@ class FeiertagControllerIntegrationTest {
     void feiertagWirdBeimBuchenAbgezogen() throws Exception {
         // Mitarbeiter in NW anlegen
         MitarbeiterRequest maRequest = new MitarbeiterRequest(
-                "MA-200", "Klaus", "Klein", "klaus@example.com", Bundesland.NW, null
+                "MA-200", "Klaus", "Klein", "klaus@example.com",
+                "geheim12", Rolle.MITARBEITER, Bundesland.NW, null
         );
         mockMvc.perform(post("/api/mitarbeiter")
                         .contentType(MediaType.APPLICATION_JSON)

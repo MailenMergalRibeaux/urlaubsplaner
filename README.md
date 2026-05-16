@@ -42,6 +42,106 @@ Beispielantwort:
 }
 ```
 
+## Authentifizierung und Rollen
+
+Alle Endpoints ausser `GET /api/health`, `POST /api/auth/login`, `POST /api/auth/register`
+und der Swagger/OpenAPI-Pfade erfordern eine Anmeldung.
+
+- Anmeldung erfolgt ueber **HTTP Basic** mit **E-Mail + Passwort**.
+- Passwoerter sind in der `mitarbeiter`-Tabelle als BCrypt-Hash abgelegt.
+- Es existiert **kein statischer Default-Benutzer** in der Konfiguration.
+
+### Rollen
+
+| Rolle            | Bedeutung                                                                  |
+| ---------------- | -------------------------------------------------------------------------- |
+| `MITARBEITER`    | Darf eigene Antraege stellen und lesende Endpoints aufrufen.               |
+| `FUEHRUNGSKRAFT` | Darf zusaetzlich Mitarbeiter anlegen, aktualisieren und loeschen.          |
+
+### Login
+
+`POST /api/auth/login` prueft Credentials und liefert das Profil zurueck.
+
+```bash
+curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alex@example.com","passwort":"Geheim1234"}'
+```
+
+Antwort bei Erfolg: `200` mit `MitarbeiterResponse` (ohne Passwort/Hash).
+Bei falschem Passwort oder unbekannter E-Mail: `401`.
+
+Fuer Folge-Requests muss der Client den Basic-Auth-Header mitsenden, z.B.
+`curl -u 'alex@example.com:Geheim1234' http://localhost:8081/api/urlaubsantraege`.
+
+### Registrierung von Fuehrungskraeften
+
+`POST /api/auth/register` legt einen neuen `FUEHRUNGSKRAFT`-Account an.
+Der Endpoint ist anonym erreichbar, erwartet aber einen **Invite-Code** im Body.
+Der Server vergleicht ihn gegen die Property `app.fuehrungskraft.invite-code`
+(Env-Variable `APP_FUEHRUNGSKRAFT_INVITE_CODE`).
+
+Ohne konfigurierten Code ist die Registrierung deaktiviert (`403`).
+
+```bash
+curl -X POST http://localhost:8081/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id":"FK-100","vorname":"Alex","nachname":"Anon",
+    "email":"alex@example.com","passwort":"Geheim1234",
+    "bundesland":"NW","inviteCode":"<dein-invite-code>"
+  }'
+```
+
+Die Rolle wird serverseitig hartkodiert auf `FUEHRUNGSKRAFT` gesetzt — der Aufrufer kann sie nicht ueber das Request-Body steuern.
+
+### Mitarbeiter anlegen
+
+`POST /api/mitarbeiter` legt einen Account mit Rolle `MITARBEITER` an. Es ist erforderlich:
+
+- **Authentifizierung als `FUEHRUNGSKRAFT`** (sonst `403`).
+- **Rolle im Request = `MITARBEITER`** (anderer Wert -> `400`; Fuehrungskraefte registrieren sich ueber `/api/auth/register`).
+- Mindestpasswortlaenge **8 Zeichen**.
+
+```bash
+curl -u 'alex@example.com:Geheim1234' \
+  -H "Content-Type: application/json" \
+  -X POST http://localhost:8081/api/mitarbeiter \
+  -d '{
+    "id":"MA-100","vorname":"Mira","nachname":"Mit",
+    "email":"mira@example.com","passwort":"Mira12345",
+    "rolle":"MITARBEITER","bundesland":"NW"
+  }'
+```
+
+### Initiale Fuehrungskraft (Bootstrap)
+
+Damit die App in einer leeren DB nutzbar ist, legt der `FuehrungskraftInitializer` beim Start eine
+initiale Fuehrungskraft an — aber **nur**, wenn die Tabelle leer ist *und* ein Passwort konfiguriert ist:
+
+| Property                          | Env-Variable                       | Default                  |
+| --------------------------------- | ---------------------------------- | ------------------------ |
+| `app.fuehrungskraft.id`           | `APP_FUEHRUNGSKRAFT_ID`            | `FK-001`                 |
+| `app.fuehrungskraft.email`        | `APP_FUEHRUNGSKRAFT_EMAIL`         | `fuehrungskraft@local`   |
+| `app.fuehrungskraft.password`     | `APP_FUEHRUNGSKRAFT_PASSWORD`      | *(leer = kein Bootstrap)* |
+| `app.fuehrungskraft.invite-code`  | `APP_FUEHRUNGSKRAFT_INVITE_CODE`   | *(leer = Register aus)*  |
+
+Empfohlener Start (lokal):
+
+```bash
+export APP_FUEHRUNGSKRAFT_PASSWORD="<sicheres-passwort>"
+export APP_FUEHRUNGSKRAFT_INVITE_CODE="<langer-zufallsstring>"
+./gradlew bootRun
+```
+
+In PowerShell:
+
+```powershell
+$env:APP_FUEHRUNGSKRAFT_PASSWORD = "<sicheres-passwort>"
+$env:APP_FUEHRUNGSKRAFT_INVITE_CODE = "<langer-zufallsstring>"
+.\gradlew bootRun
+```
+
 ## Paketstruktur
 
 - `com.mmr.config` fuer Security-Konfiguration

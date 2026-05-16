@@ -7,13 +7,9 @@ spring:
   #   postgresql - PostgreSQL via Env-Vars, SQL-Init        (lokal mit Postgres)
   #   docker     - PostgreSQL via db-Host, Port 8080        (Container-Betrieb)
 
-  security:
-    user:
-      # Credentials for HTTP Basic authentication on protected endpoints.
-      # Override via environment variables in each runtime environment.
-      name: ${APP_SECURITY_USER:admin}
-      password: ${APP_SECURITY_PASSWORD:admin123}
-      roles: USER
+  # HTTP Basic Authentifizierung wird ueber MitarbeiterUserDetailsService gegen die
+  # mitarbeiter-Tabelle geprueft (E-Mail + BCrypt-Passwort). Eine statische
+  # spring.security.user.*-Konfiguration existiert bewusst nicht.
 
   datasource:
     # Default auf H2, damit die App lokal ohne PostgreSQL-Zugangsdaten startet.
