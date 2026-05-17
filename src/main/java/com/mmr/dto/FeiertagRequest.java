@@ -13,7 +13,6 @@ public record FeiertagRequest(
         @NotNull(message = "Datum ist erforderlich")
         LocalDate datum,
 
-        /** null = bundesweiter Feiertag */
         Bundesland bundesland
 ) {
 }
