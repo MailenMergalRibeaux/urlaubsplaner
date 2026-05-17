@@ -24,12 +24,16 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/health").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // change-password ist auch fuer Konten mit PASSWORT_AENDERUNG_ERFORDERLICH erreichbar
+                        .requestMatchers("/api/auth/change-password").authenticated()
                         .requestMatchers(POST, "/api/mitarbeiter/**").hasRole("FUEHRUNGSKRAFT")
                         .requestMatchers(PUT, "/api/mitarbeiter/**").hasRole("FUEHRUNGSKRAFT")
                         .requestMatchers(DELETE, "/api/mitarbeiter/**").hasRole("FUEHRUNGSKRAFT")
-                        .anyRequest().authenticated()
+                        // Alle anderen geschuetzten Endpoints: nur fuer normale Rollen, NICHT fuer
+                        // Konten mit ausstehendem Passwortwechsel (die haben nur PASSWORT_AENDERUNG_ERFORDERLICH).
+                        .anyRequest().hasAnyRole("MITARBEITER", "FUEHRUNGSKRAFT")
                 )
                 .httpBasic(Customizer.withDefaults());
 

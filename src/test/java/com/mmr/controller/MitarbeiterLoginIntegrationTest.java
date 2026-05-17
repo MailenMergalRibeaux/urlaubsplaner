@@ -139,6 +139,7 @@ class MitarbeiterLoginIntegrationTest {
         m.setPasswortHash(passwordEncoder.encode(passwort));
         m.setRolle(rolle);
         m.setBundesland(Bundesland.NW);
+        m.setPasswortAenderungErforderlich(false);
         return m;
     }
 }

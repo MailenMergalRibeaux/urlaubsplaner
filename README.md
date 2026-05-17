@@ -114,6 +114,33 @@ curl -u 'alex@example.com:Geheim1234' \
   }'
 ```
 
+Das vergebene Passwort gilt als **Initial-Passwort**: die Response enthaelt `"passwortAenderungErforderlich": true` und der MA kann **keine** anderen Endpoints aufrufen, bis er ueber `/api/auth/change-password` (siehe unten) ein neues Passwort gesetzt hat. Dieses Verhalten greift auch, wenn eine FK das Passwort eines bestehenden MA ueber `PUT /api/mitarbeiter/{id}` zuruecksetzt.
+
+### Passwortwechsel (Initial-Passwort aendern)
+
+`POST /api/auth/change-password` ersetzt das Passwort des aktuell angemeldeten Benutzers und loescht das Flag `passwortAenderungErforderlich`.
+
+```bash
+curl -u 'carl@example.com:InitMA1234' \
+  -H "Content-Type: application/json" \
+  -X POST http://localhost:8081/api/auth/change-password \
+  -d '{"altesPasswort":"InitMA1234","neuesPasswort":"CarlNeu2026"}'
+```
+
+Reaktionen:
+
+| Status | Bedingung                                                              |
+| ------ | ---------------------------------------------------------------------- |
+| `200`  | Erfolg; Response enthaelt das Profil mit `passwortAenderungErforderlich: false`. |
+| `400`  | Altes Passwort falsch ODER neues Passwort identisch zum alten ODER kuerzer als 8 Zeichen. |
+| `401`  | Nicht angemeldet.                                                      |
+
+Solange das Flag gesetzt ist, gilt:
+
+- Konto wird intern auf eine spezielle Rolle `PASSWORT_AENDERUNG_ERFORDERLICH` reduziert.
+- Alle Endpoints **ausser** `POST /api/auth/change-password`, `POST /api/auth/login`, `POST /api/auth/register`, `GET /api/health` und Swagger liefern `403`.
+- Self-registrierte Fuehrungskraefte und die initiale Bootstrap-Fuehrungskraft sind hiervon **nicht** betroffen (Passwort selbst gewaehlt).
+
 ### Initiale Fuehrungskraft (Bootstrap)
 
 Damit die App in einer leeren DB nutzbar ist, legt der `FuehrungskraftInitializer` beim Start eine

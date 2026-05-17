@@ -50,6 +50,7 @@ class AuthControllerIntegrationTest {
         m.setPasswortHash(passwordEncoder.encode(PASSWORT));
         m.setRolle(Rolle.MITARBEITER);
         m.setBundesland(Bundesland.NW);
+        m.setPasswortAenderungErforderlich(false);
         repository.save(m);
     }
 

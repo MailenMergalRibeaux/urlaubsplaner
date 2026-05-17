@@ -11,7 +11,8 @@ public record MitarbeiterResponse(
         String email,
         Rolle rolle,
         Bundesland bundesland,
-        String vorgesetzterMitarbeiterId
+        String vorgesetzterMitarbeiterId,
+        boolean passwortAenderungErforderlich
 ) {
     public static MitarbeiterResponse from(Mitarbeiter m) {
         return new MitarbeiterResponse(
@@ -21,7 +22,8 @@ public record MitarbeiterResponse(
                 m.getEmail(),
                 m.getRolle(),
                 m.getBundesland(),
-                m.getVorgesetzterMitarbeiterId()
+                m.getVorgesetzterMitarbeiterId(),
+                m.isPasswortAenderungErforderlich()
         );
     }
 }

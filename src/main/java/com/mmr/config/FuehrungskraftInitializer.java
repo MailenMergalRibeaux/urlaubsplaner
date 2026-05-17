@@ -54,6 +54,7 @@ public class FuehrungskraftInitializer implements CommandLineRunner {
         fk.setPasswortHash(passwordEncoder.encode(fuehrungskraftPassword));
         fk.setRolle(Rolle.FUEHRUNGSKRAFT);
         fk.setBundesland(Bundesland.NW);
+        fk.setPasswortAenderungErforderlich(false);
         repository.save(fk);
         log.info("Initiale Fuehrungskraft angelegt: id={}, email={}", fuehrungskraftId, fuehrungskraftEmail);
     }

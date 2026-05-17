@@ -47,4 +47,12 @@ public class Mitarbeiter {
     /** Optional: ID des Vorgesetzten (selbstreferenzierend) */
     private String vorgesetzterMitarbeiterId;
 
+    /**
+     * true, wenn das aktuelle Passwort ein von einer Fuehrungskraft vergebenes Initial-Passwort ist
+     * und vor weiterer Nutzung der App geaendert werden muss.
+     */
+    @Column(name = "passwort_aenderung_erforderlich", nullable = false,
+            columnDefinition = "BOOLEAN NOT NULL DEFAULT FALSE")
+    private boolean passwortAenderungErforderlich = false;
+
 }

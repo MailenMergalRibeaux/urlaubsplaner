@@ -14,6 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MitarbeiterUserDetailsService implements UserDetailsService {
 
+    /**
+     * Spezielle Rolle fuer Konten, deren Initial-Passwort noch nicht gewechselt wurde.
+     * Solche Konten duerfen ausschliesslich /api/auth/change-password aufrufen.
+     */
+    public static final String ROLE_PASSWORT_AENDERUNG_ERFORDERLICH = "PASSWORT_AENDERUNG_ERFORDERLICH";
+
     private final MitarbeiterRepository repository;
 
     @Override
@@ -21,9 +27,12 @@ public class MitarbeiterUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         Mitarbeiter m = repository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Mitarbeiter mit E-Mail '" + email + "' nicht gefunden."));
+        String role = m.isPasswortAenderungErforderlich()
+                ? ROLE_PASSWORT_AENDERUNG_ERFORDERLICH
+                : m.getRolle().name();
         return User.withUsername(m.getEmail())
                 .password(m.getPasswortHash())
-                .roles(m.getRolle().name())
+                .roles(role)
                 .build();
     }
 }

@@ -40,6 +40,7 @@ public class MitarbeiterService {
         }
         Mitarbeiter m = new Mitarbeiter();
         m.setPasswortHash(passwordEncoder.encode(request.passwort()));
+        m.setPasswortAenderungErforderlich(true);
         return MitarbeiterResponse.from(repository.save(mapToEntity(m, request)));
     }
 
@@ -89,8 +90,23 @@ public class MitarbeiterService {
         }
         if (request.passwort() != null && !request.passwort().isBlank()) {
             m.setPasswortHash(passwordEncoder.encode(request.passwort()));
+            // Passwort durch Fuehrungskraft zurueckgesetzt -> MA muss erneut wechseln.
+            m.setPasswortAenderungErforderlich(true);
         }
         return MitarbeiterResponse.from(repository.save(mapToEntity(m, request)));
+    }
+
+    public void aenderePasswort(String mitarbeiterId, String altesPasswort, String neuesPasswort) {
+        Mitarbeiter m = getOrThrow(mitarbeiterId);
+        if (!passwordEncoder.matches(altesPasswort, m.getPasswortHash())) {
+            throw new IllegalArgumentException("Aktuelles Passwort ist falsch.");
+        }
+        if (passwordEncoder.matches(neuesPasswort, m.getPasswortHash())) {
+            throw new IllegalArgumentException("Neues Passwort muss sich vom aktuellen unterscheiden.");
+        }
+        m.setPasswortHash(passwordEncoder.encode(neuesPasswort));
+        m.setPasswortAenderungErforderlich(false);
+        repository.save(m);
     }
 
     public void loeschen(String id) {
